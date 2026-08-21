@@ -1,0 +1,99 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #0f1117;
+    color: #ffffff;
+    min-height: 100vh;
+}
+
+.app {
+    width: 100%;
+    max-width: 480px;
+    margin: auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    padding: 25px 0;
+}
+
+header h1 {
+    font-size: 30px;
+    margin-bottom: 8px;
+}
+
+header p {
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.balance {
+    background: linear-gradient(135deg, #1d2330, #171b25);
+    border-radius: 20px;
+    padding: 25px;
+    text-align: center;
+    margin-bottom: 20px;
+    border: 1px solid #2b3240;
+}
+
+.balance span {
+    display: block;
+    color: #9ca3af;
+    margin-bottom: 10px;
+}
+
+.balance strong {
+    font-size: 32px;
+    color: #ffd54a;
+}
+
+.buttons {
+    display: grid;
+    gap: 12px;
+}
+
+.buttons button {
+    width: 100%;
+    border: none;
+    border-radius: 16px;
+    padding: 18px;
+    background: #1b202b;
+    color: white;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    cursor: pointer;
+    border: 1px solid #2b3240;
+    transition: 0.2s;
+}
+
+.buttons button:hover {
+    background: #252c39;
+    transform: translateY(-1px);
+}
+
+.buttons button span {
+    flex: 1;
+    text-align: right;
+}
+
+@media (max-width: 400px) {
+    .app {
+        padding: 15px;
+    }
+
+    header h1 {
+        font-size: 26px;
+    }
+
+    .balance strong {
+        font-size: 28px;
+    }
+}
