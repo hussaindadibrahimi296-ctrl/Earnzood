@@ -13,22 +13,32 @@ from database import init_db, create_user, get_db
 
 app = Flask(__name__)
 
-# اجازه اتصال GitHub Pages به Backend
-CORS(app)
+# ==========================================
+# CORS
+# ==========================================
+
+CORS(
+    app,
+    resources={
+        r"/api/*": {
+            "origins": "*"
+        }
+    }
+)
 
 
-# ساخت دیتابیس
+# ==========================================
+# Database
+# ==========================================
+
 init_db()
 
 
 # ==========================================
-# Telegram WebApp Security
+# Telegram Mini App Security
 # ==========================================
 
 def validate_telegram_init_data(init_data):
-    """
-    اعتبارسنجی initData رسمی Telegram Mini App
-    """
 
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
 
@@ -37,34 +47,52 @@ def validate_telegram_init_data(init_data):
         return None
 
     if not init_data:
+        print("ERROR: Telegram initData is empty")
         return None
 
     try:
-        parsed_data = dict(parse_qsl(init_data, keep_blank_values=True))
 
-        received_hash = parsed_data.pop("hash", None)
+        # تبدیل query string به لیست
+        parsed_items = parse_qsl(
+            init_data,
+            keep_blank_values=True
+        )
+
+        # تبدیل به dictionary
+        parsed_data = dict(parsed_items)
+
+        # hash اصلی Telegram
+        received_hash = parsed_data.get("hash")
 
         if not received_hash:
+            print("ERROR: Telegram hash is missing")
             return None
+
+        # حذف hash برای ساخت data-check-string
+        data_check_data = {
+            key: value
+            for key, value in parsed_data.items()
+            if key != "hash"
+        }
 
         # ساخت data-check-string
         data_check_string = "\n".join(
-            f"{key}={value}"
-            for key, value in sorted(parsed_data.items())
+            f"{key}={data_check_data[key]}"
+            for key in sorted(data_check_data.keys())
         )
 
-        # Telegram WebApp secret key
+        # ساخت secret key طبق Telegram Mini Apps
         secret_key = hmac.new(
-            b"WebAppData",
-            bot_token.encode(),
-            hashlib.sha256
+            key=b"WebAppData",
+            msg=bot_token.encode("utf-8"),
+            digestmod=hashlib.sha256
         ).digest()
 
         # محاسبه hash
         calculated_hash = hmac.new(
-            secret_key,
-            data_check_string.encode(),
-            hashlib.sha256
+            key=secret_key,
+            msg=data_check_string.encode("utf-8"),
+            digestmod=hashlib.sha256
         ).hexdigest()
 
         # مقایسه امن
@@ -72,39 +100,95 @@ def validate_telegram_init_data(init_data):
             calculated_hash,
             received_hash
         ):
+
             print("Telegram initData hash is invalid")
+
             return None
 
-        # بررسی زمان initData
-        auth_date = parsed_data.get("auth_date")
 
-        if auth_date:
-            try:
-                auth_time = int(auth_date)
+        # ======================================
+        # بررسی زمان
+        # ======================================
 
-                # اعتبار تا 24 ساعت
-                if time.time() - auth_time > 86400:
-                    print("Telegram initData has expired")
-                    return None
+        auth_date = data_check_data.get("auth_date")
 
-            except ValueError:
-                return None
+        if not auth_date:
 
-        # دریافت اطلاعات کاربر
-        user_json = parsed_data.get("user")
+            print("ERROR: auth_date is missing")
+
+            return None
+
+        try:
+
+            auth_time = int(auth_date)
+
+        except (ValueError, TypeError):
+
+            print("ERROR: invalid auth_date")
+
+            return None
+
+
+        current_time = int(time.time())
+
+        # جلوگیری از داده‌های خیلی قدیمی
+        if current_time - auth_time > 86400:
+
+            print("Telegram initData has expired")
+
+            return None
+
+
+        # جلوگیری از timestamp آینده غیرعادی
+        if auth_time - current_time > 300:
+
+            print("Telegram initData timestamp is invalid")
+
+            return None
+
+
+        # ======================================
+        # دریافت Telegram user
+        # ======================================
+
+        user_json = data_check_data.get("user")
 
         if not user_json:
+
+            print("ERROR: Telegram user is missing")
+
             return None
 
-        user = json.loads(user_json)
+        try:
 
-        if not user.get("id"):
+            user = json.loads(user_json)
+
+        except json.JSONDecodeError:
+
+            print("ERROR: Telegram user JSON is invalid")
+
             return None
+
+
+        telegram_id = user.get("id")
+
+        if not telegram_id:
+
+            print("ERROR: Telegram user ID is missing")
+
+            return None
+
 
         return user
 
+
     except Exception as error:
-        print("Telegram validation error:", error)
+
+        print(
+            "Telegram validation error:",
+            error
+        )
+
         return None
 
 
@@ -114,7 +198,8 @@ def validate_telegram_init_data(init_data):
 
 @app.route("/")
 def home():
-    return "بخش پشتیبانی EarnZood در حال اجرا است!"
+
+    return "EarnZood Backend is running successfully 🚀"
 
 
 # ==========================================
@@ -125,50 +210,97 @@ def home():
 def test():
 
     return jsonify({
+
         "success": True,
-        "message": "رابط برنامه‌نویسی EarnZood در حال کار است"
+
+        "message":
+        "EarnZood API is working",
+
+        "telegram_token":
+        bool(
+            os.environ.get(
+                "TELEGRAM_BOT_TOKEN"
+            )
+        )
+
     })
 
 
 # ==========================================
-# Register / Get User
+# User API
 # ==========================================
 
-@app.route("/api/user", methods=["POST"])
+@app.route(
+    "/api/user",
+    methods=["POST"]
+)
 def register_user():
 
-    data = request.get_json(silent=True)
+    data = request.get_json(
+        silent=True
+    )
 
     if not data:
+
         return jsonify({
+
             "success": False,
-            "message": "اطلاعاتی دریافت نشد"
+
+            "message":
+            "اطلاعاتی دریافت نشد"
+
         }), 400
 
 
-    # دریافت initData واقعی Telegram
-    init_data = data.get("initData")
+    # ======================================
+    # دریافت Telegram initData
+    # ======================================
+
+    init_data = data.get(
+        "initData"
+    )
 
     if not init_data:
+
         return jsonify({
+
             "success": False,
-            "message": "اطلاعات Telegram دریافت نشد"
+
+            "message":
+            "Telegram initData دریافت نشد"
+
         }), 401
 
 
+    # ======================================
     # اعتبارسنجی Telegram
-    telegram_user = validate_telegram_init_data(init_data)
+    # ======================================
+
+    telegram_user = (
+        validate_telegram_init_data(
+            init_data
+        )
+    )
 
     if not telegram_user:
 
         return jsonify({
+
             "success": False,
-            "message": "هویت کاربر Telegram معتبر نیست"
+
+            "message":
+            "هویت Telegram معتبر نیست"
+
         }), 403
 
 
-    # اطلاعات معتبر کاربر
-    telegram_id = telegram_user.get("id")
+    # ======================================
+    # اطلاعات تأییدشده Telegram
+    # ======================================
+
+    telegram_id = telegram_user.get(
+        "id"
+    )
 
     username = telegram_user.get(
         "username",
@@ -183,27 +315,48 @@ def register_user():
 
     try:
 
-        # ساخت کاربر در صورت جدید بودن
+        # ==================================
+        # ایجاد کاربر
+        # ==================================
+
         create_user(
+
             telegram_id,
+
             username,
+
             first_name
+
         )
 
 
-        # دریافت اطلاعات کاربر
+        # ==================================
+        # دریافت کاربر از دیتابیس
+        # ==================================
+
         conn = get_db()
 
         user = conn.execute("""
+
             SELECT
+
                 telegram_id,
+
                 username,
+
                 first_name,
+
                 balance,
+
                 referral_count
+
             FROM users
+
             WHERE telegram_id = ?
-        """, (telegram_id,)).fetchone()
+
+        """, (
+            telegram_id,
+        )).fetchone()
 
         conn.close()
 
@@ -211,10 +364,18 @@ def register_user():
         if not user:
 
             return jsonify({
+
                 "success": False,
-                "message": "کاربر در دیتابیس پیدا نشد"
+
+                "message":
+                "کاربر در دیتابیس پیدا نشد"
+
             }), 404
 
+
+        # ==================================
+        # پاسخ موفق
+        # ==================================
 
         return jsonify({
 
@@ -236,7 +397,8 @@ def register_user():
 
             "success": False,
 
-            "message": "خطا در ثبت کاربر"
+            "message":
+            "خطا در ثبت کاربر"
 
         }), 500
 
@@ -247,7 +409,17 @@ def register_user():
 
 if __name__ == "__main__":
 
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
     app.run(
+
         host="0.0.0.0",
-        port=5000
-)
+
+        port=port
+
+        )
