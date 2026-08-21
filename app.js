@@ -1,38 +1,21 @@
-// EarnZood Telegram Mini App
+const tg = window.Telegram.WebApp;
 
-function initEarnZood() {
+tg.ready();
+tg.expand();
 
-    const tg = window.Telegram.WebApp;
+const user = tg.initDataUnsafe?.user;
 
-    // آماده‌سازی Telegram Mini App
-    tg.ready();
-    tg.expand();
+if (user) {
+    const header = document.querySelector("header");
 
-    console.log("Telegram WebApp loaded");
+    const welcome = document.createElement("p");
 
-    // اطلاعات کاربر
-    const user = tg.initDataUnsafe.user;
+    welcome.textContent = `سلام ${user.first_name} 👋`;
 
-    console.log("Telegram user:", user);
+    welcome.style.marginTop = "10px";
+    welcome.style.color = "#ffd54a";
+    welcome.style.fontSize = "15px";
+    welcome.style.fontWeight = "bold";
 
-    if (user && user.first_name) {
-
-        const welcome = document.createElement("div");
-
-        welcome.textContent = "سلام " + user.first_name + " 👋";
-
-        welcome.style.textAlign = "center";
-        welcome.style.marginTop = "10px";
-        welcome.style.fontSize = "16px";
-        welcome.style.fontWeight = "bold";
-        welcome.style.color = "#ffd54a";
-
-        const header = document.querySelector("header");
-
-        header.appendChild(welcome);
-    }
-
+    header.appendChild(welcome);
 }
-
-// وقتی صفحه کاملاً آماده شد
-window.addEventListener("load", initEarnZood);
