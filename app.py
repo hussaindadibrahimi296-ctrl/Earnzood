@@ -11,20 +11,31 @@ from flask_cors import CORS
 from database import init_db, create_user, get_db
 
 
+# ==========================================
+# App
+# ==========================================
+
 app = Flask(__name__)
 
+CORS(app)
+
+
 # ==========================================
-# CORS
+# تنظیمات موقت EarnZood
+# بعداً از Admin Panel قابل تغییر می‌شود
 # ==========================================
 
-CORS(
-    app,
-    resources={
-        r"/api/*": {
-            "origins": "*"
-        }
-    }
-)
+AD_REWARD = 100
+TASK_REWARD = 100
+
+AD_DAILY_LIMIT = 5
+TASK_DAILY_LIMIT = 1
+
+
+# AdsGram Block IDs
+
+ADS_BLOCK_ID = "43856"
+TASK_BLOCK_ID = "task-43858"
 
 
 # ==========================================
@@ -35,146 +46,146 @@ init_db()
 
 
 # ==========================================
-# Telegram Mini App Security
+# Telegram WebApp Security
 # ==========================================
 
 def validate_telegram_init_data(init_data):
 
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    bot_token = os.environ.get(
+        "TELEGRAM_BOT_TOKEN"
+    )
 
     if not bot_token:
-        print("ERROR: TELEGRAM_BOT_TOKEN is not configured")
+
+        print(
+            "ERROR: TELEGRAM_BOT_TOKEN is not configured"
+        )
+
         return None
 
+
     if not init_data:
-        print("ERROR: Telegram initData is empty")
+
         return None
+
 
     try:
 
-        # تبدیل query string به لیست
-        parsed_items = parse_qsl(
-            init_data,
-            keep_blank_values=True
+        parsed_data = dict(
+            parse_qsl(
+                init_data,
+                keep_blank_values=True
+            )
         )
 
-        # تبدیل به dictionary
-        parsed_data = dict(parsed_items)
 
-        # hash اصلی Telegram
-        received_hash = parsed_data.get("hash")
+        received_hash = parsed_data.pop(
+            "hash",
+            None
+        )
+
 
         if not received_hash:
-            print("ERROR: Telegram hash is missing")
+
             return None
 
-        # حذف hash برای ساخت data-check-string
-        data_check_data = {
-            key: value
-            for key, value in parsed_data.items()
-            if key != "hash"
-        }
 
-        # ساخت data-check-string
+        # Telegram data-check-string
+
         data_check_string = "\n".join(
-            f"{key}={data_check_data[key]}"
-            for key in sorted(data_check_data.keys())
+            f"{key}={value}"
+            for key, value
+            in sorted(parsed_data.items())
         )
 
-        # ساخت secret key طبق Telegram Mini Apps
+
+        # Telegram secret key
+
         secret_key = hmac.new(
-            key=b"WebAppData",
-            msg=bot_token.encode("utf-8"),
-            digestmod=hashlib.sha256
+            b"WebAppData",
+            bot_token.encode(),
+            hashlib.sha256
         ).digest()
 
-        # محاسبه hash
+
+        # Calculate hash
+
         calculated_hash = hmac.new(
-            key=secret_key,
-            msg=data_check_string.encode("utf-8"),
-            digestmod=hashlib.sha256
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
         ).hexdigest()
 
-        # مقایسه امن
+
+        # Secure comparison
+
         if not hmac.compare_digest(
             calculated_hash,
             received_hash
         ):
 
-            print("Telegram initData hash is invalid")
+            print(
+                "Telegram initData hash is invalid"
+            )
 
             return None
 
 
         # ======================================
-        # بررسی زمان
+        # بررسی تاریخ
         # ======================================
 
-        auth_date = data_check_data.get("auth_date")
-
-        if not auth_date:
-
-            print("ERROR: auth_date is missing")
-
-            return None
-
-        try:
-
-            auth_time = int(auth_date)
-
-        except (ValueError, TypeError):
-
-            print("ERROR: invalid auth_date")
-
-            return None
+        auth_date = parsed_data.get(
+            "auth_date"
+        )
 
 
-        current_time = int(time.time())
+        if auth_date:
 
-        # جلوگیری از داده‌های خیلی قدیمی
-        if current_time - auth_time > 86400:
+            try:
 
-            print("Telegram initData has expired")
+                auth_time = int(
+                    auth_date
+                )
 
-            return None
+
+                if (
+                    time.time() - auth_time
+                    > 86400
+                ):
+
+                    print(
+                        "Telegram initData has expired"
+                    )
+
+                    return None
 
 
-        # جلوگیری از timestamp آینده غیرعادی
-        if auth_time - current_time > 300:
+            except ValueError:
 
-            print("Telegram initData timestamp is invalid")
-
-            return None
+                return None
 
 
         # ======================================
-        # دریافت Telegram user
+        # Telegram User
         # ======================================
 
-        user_json = data_check_data.get("user")
+        user_json = parsed_data.get(
+            "user"
+        )
+
 
         if not user_json:
 
-            print("ERROR: Telegram user is missing")
-
-            return None
-
-        try:
-
-            user = json.loads(user_json)
-
-        except json.JSONDecodeError:
-
-            print("ERROR: Telegram user JSON is invalid")
-
             return None
 
 
-        telegram_id = user.get("id")
+        user = json.loads(
+            user_json
+        )
 
-        if not telegram_id:
 
-            print("ERROR: Telegram user ID is missing")
+        if not user.get("id"):
 
             return None
 
@@ -193,13 +204,69 @@ def validate_telegram_init_data(init_data):
 
 
 # ==========================================
+# دریافت کاربر معتبر
+# ==========================================
+
+def get_telegram_user():
+
+    data = request.get_json(
+        silent=True
+    )
+
+
+    if not data:
+
+        return None, jsonify({
+            "success": False,
+            "message": "اطلاعاتی دریافت نشد"
+        }), 400
+
+
+    init_data = data.get(
+        "initData"
+    )
+
+
+    if not init_data:
+
+        return None, jsonify({
+            "success": False,
+            "message": "اطلاعات Telegram دریافت نشد"
+        }), 401
+
+
+    telegram_user = validate_telegram_init_data(
+        init_data
+    )
+
+
+    if not telegram_user:
+
+        return None, jsonify({
+            "success": False,
+            "message": "هویت کاربر Telegram معتبر نیست"
+        }), 403
+
+
+    return telegram_user, None, None
+
+
+# ==========================================
 # Home
 # ==========================================
 
 @app.route("/")
 def home():
 
-    return "EarnZood Backend is running successfully 🚀"
+    return jsonify({
+
+        "success": True,
+
+        "app": "EarnZood",
+
+        "status": "online"
+
+    })
 
 
 # ==========================================
@@ -214,20 +281,50 @@ def test():
         "success": True,
 
         "message":
-        "EarnZood API is working",
-
-        "telegram_token":
-        bool(
-            os.environ.get(
-                "TELEGRAM_BOT_TOKEN"
-            )
-        )
+            "رابط برنامه‌نویسی EarnZood در حال کار است"
 
     })
 
 
 # ==========================================
-# User API
+# AdsGram Settings
+# ==========================================
+
+@app.route(
+    "/api/ads/settings",
+    methods=["GET"]
+)
+def ads_settings():
+
+    return jsonify({
+
+        "success": True,
+
+        "ads": {
+
+            "block_id": ADS_BLOCK_ID,
+
+            "reward": AD_REWARD,
+
+            "daily_limit": AD_DAILY_LIMIT
+
+        },
+
+        "task": {
+
+            "block_id": TASK_BLOCK_ID,
+
+            "reward": TASK_REWARD,
+
+            "daily_limit": TASK_DAILY_LIMIT
+
+        }
+
+    })
+
+
+# ==========================================
+# Register / Get User
 # ==========================================
 
 @app.route(
@@ -236,76 +333,25 @@ def test():
 )
 def register_user():
 
-    data = request.get_json(
-        silent=True
-    )
-
-    if not data:
-
-        return jsonify({
-
-            "success": False,
-
-            "message":
-            "اطلاعاتی دریافت نشد"
-
-        }), 400
+    telegram_user, error_response, status = \
+        get_telegram_user()
 
 
-    # ======================================
-    # دریافت Telegram initData
-    # ======================================
+    if error_response:
 
-    init_data = data.get(
-        "initData"
-    )
+        return error_response, status
 
-    if not init_data:
-
-        return jsonify({
-
-            "success": False,
-
-            "message":
-            "Telegram initData دریافت نشد"
-
-        }), 401
-
-
-    # ======================================
-    # اعتبارسنجی Telegram
-    # ======================================
-
-    telegram_user = (
-        validate_telegram_init_data(
-            init_data
-        )
-    )
-
-    if not telegram_user:
-
-        return jsonify({
-
-            "success": False,
-
-            "message":
-            "هویت Telegram معتبر نیست"
-
-        }), 403
-
-
-    # ======================================
-    # اطلاعات تأییدشده Telegram
-    # ======================================
 
     telegram_id = telegram_user.get(
         "id"
     )
 
+
     username = telegram_user.get(
         "username",
         ""
     )
+
 
     first_name = telegram_user.get(
         "first_name",
@@ -315,48 +361,33 @@ def register_user():
 
     try:
 
-        # ==================================
-        # ایجاد کاربر
-        # ==================================
+        # ساخت کاربر در صورت جدید بودن
 
         create_user(
-
             telegram_id,
-
             username,
-
             first_name
-
         )
 
 
-        # ==================================
-        # دریافت کاربر از دیتابیس
-        # ==================================
+        # دریافت کاربر
 
         conn = get_db()
 
+
         user = conn.execute("""
-
             SELECT
-
                 telegram_id,
-
                 username,
-
                 first_name,
-
                 balance,
-
                 referral_count
-
             FROM users
-
             WHERE telegram_id = ?
-
         """, (
             telegram_id,
         )).fetchone()
+
 
         conn.close()
 
@@ -368,14 +399,10 @@ def register_user():
                 "success": False,
 
                 "message":
-                "کاربر در دیتابیس پیدا نشد"
+                    "کاربر در دیتابیس پیدا نشد"
 
             }), 404
 
-
-        # ==================================
-        # پاسخ موفق
-        # ==================================
 
         return jsonify({
 
@@ -393,33 +420,461 @@ def register_user():
             error
         )
 
+
         return jsonify({
 
             "success": False,
 
             "message":
-            "خطا در ثبت کاربر"
+                "خطا در ثبت کاربر"
 
         }), 500
 
 
 # ==========================================
-# Run
+# دریافت موجودی
+# ==========================================
+
+def get_user_balance(
+    telegram_id
+):
+
+    conn = get_db()
+
+
+    user = conn.execute("""
+        SELECT balance
+        FROM users
+        WHERE telegram_id = ?
+    """, (
+        telegram_id,
+    )).fetchone()
+
+
+    conn.close()
+
+
+    if not user:
+
+        return None
+
+
+    return user["balance"]
+
+
+# ==========================================
+# افزایش موجودی
+# ==========================================
+
+def add_balance(
+    telegram_id,
+    amount
+):
+
+    conn = get_db()
+
+
+    conn.execute("""
+        UPDATE users
+        SET balance = balance + ?
+        WHERE telegram_id = ?
+    """, (
+        amount,
+        telegram_id
+    ))
+
+
+    conn.commit()
+
+
+    user = conn.execute("""
+        SELECT
+            balance,
+            referral_count
+        FROM users
+        WHERE telegram_id = ?
+    """, (
+        telegram_id,
+    )).fetchone()
+
+
+    conn.close()
+
+
+    return user
+
+
+# ==========================================
+# بررسی پاداش‌های امروز
+# ==========================================
+
+def get_today_reward_count(
+    telegram_id,
+    reward_type
+):
+
+    """
+    این تابع فعلاً از جدول reward_logs استفاده می‌کند.
+
+    اگر جدول وجود نداشته باشد، آن را ایجاد می‌کند.
+    """
+
+    conn = get_db()
+
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reward_logs (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            telegram_id INTEGER NOT NULL,
+
+            reward_type TEXT NOT NULL,
+
+            amount INTEGER NOT NULL,
+
+            created_at INTEGER NOT NULL
+
+        )
+    """)
+
+
+    today_start = int(
+        time.time()
+        // 86400
+        * 86400
+    )
+
+
+    row = conn.execute("""
+        SELECT COUNT(*) AS count
+        FROM reward_logs
+        WHERE telegram_id = ?
+        AND reward_type = ?
+        AND created_at >= ?
+    """, (
+        telegram_id,
+        reward_type,
+        today_start
+    )).fetchone()
+
+
+    conn.commit()
+
+    conn.close()
+
+
+    return row["count"]
+
+
+# ==========================================
+# ثبت پاداش
+# ==========================================
+
+def give_reward(
+    telegram_id,
+    reward_type,
+    amount
+):
+
+    conn = get_db()
+
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reward_logs (
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            telegram_id INTEGER NOT NULL,
+
+            reward_type TEXT NOT NULL,
+
+            amount INTEGER NOT NULL,
+
+            created_at INTEGER NOT NULL
+
+        )
+    """)
+
+
+    # ثبت پاداش
+
+    conn.execute("""
+        INSERT INTO reward_logs
+        (
+            telegram_id,
+            reward_type,
+            amount,
+            created_at
+        )
+        VALUES (?, ?, ?, ?)
+    """, (
+        telegram_id,
+        reward_type,
+        amount,
+        int(time.time())
+    ))
+
+
+    # افزایش موجودی
+
+    conn.execute("""
+        UPDATE users
+        SET balance = balance + ?
+        WHERE telegram_id = ?
+    """, (
+        amount,
+        telegram_id
+    ))
+
+
+    conn.commit()
+
+
+    user = conn.execute("""
+        SELECT
+            balance,
+            referral_count
+        FROM users
+        WHERE telegram_id = ?
+    """, (
+        telegram_id,
+    )).fetchone()
+
+
+    conn.close()
+
+
+    return user
+
+
+# ==========================================
+# AdsGram Rewarded
+# ==========================================
+
+@app.route(
+    "/api/ad/reward",
+    methods=["POST"]
+)
+def reward_ad():
+
+    telegram_user, error_response, status = \
+        get_telegram_user()
+
+
+    if error_response:
+
+        return error_response, status
+
+
+    telegram_id = telegram_user.get(
+        "id"
+    )
+
+
+    # ======================================
+    # مطمئن شو کاربر در DB وجود دارد
+    # ======================================
+
+    create_user(
+        telegram_id,
+        telegram_user.get(
+            "username",
+            ""
+        ),
+        telegram_user.get(
+            "first_name",
+            ""
+        )
+    )
+
+
+    # ======================================
+    # محدودیت روزانه
+    # ======================================
+
+    count = get_today_reward_count(
+        telegram_id,
+        "ad"
+    )
+
+
+    if count >= AD_DAILY_LIMIT:
+
+        return jsonify({
+
+            "success": False,
+
+            "message":
+                "حداکثر تعداد تبلیغ امروز تکمیل شده است",
+
+            "limit":
+                AD_DAILY_LIMIT
+
+        }), 429
+
+
+    # ======================================
+    # دادن پاداش
+    # ======================================
+
+    user = give_reward(
+        telegram_id,
+        "ad",
+        AD_REWARD
+    )
+
+
+    if not user:
+
+        return jsonify({
+
+            "success": False,
+
+            "message":
+                "کاربر پیدا نشد"
+
+        }), 404
+
+
+    return jsonify({
+
+        "success": True,
+
+        "reward": AD_REWARD,
+
+        "reward_type": "ad",
+
+        "user": {
+
+            "balance":
+                user["balance"],
+
+            "referral_count":
+                user["referral_count"]
+
+        }
+
+    })
+
+
+# ==========================================
+# AdsGram Task Reward
+# ==========================================
+
+@app.route(
+    "/api/task/reward",
+    methods=["POST"]
+)
+def reward_task():
+
+    telegram_user, error_response, status = \
+        get_telegram_user()
+
+
+    if error_response:
+
+        return error_response, status
+
+
+    telegram_id = telegram_user.get(
+        "id"
+    )
+
+
+    # ======================================
+    # ساخت کاربر
+    # ======================================
+
+    create_user(
+        telegram_id,
+        telegram_user.get(
+            "username",
+            ""
+        ),
+        telegram_user.get(
+            "first_name",
+            ""
+        )
+    )
+
+
+    # ======================================
+    # محدودیت روزانه Task
+    # ======================================
+
+    count = get_today_reward_count(
+        telegram_id,
+        "task"
+    )
+
+
+    if count >= TASK_DAILY_LIMIT:
+
+        return jsonify({
+
+            "success": False,
+
+            "message":
+                "این تسک امروز قبلاً دریافت شده است",
+
+            "limit":
+                TASK_DAILY_LIMIT
+
+        }), 429
+
+
+    # ======================================
+    # پاداش Task
+    # ======================================
+
+    user = give_reward(
+        telegram_id,
+        "task",
+        TASK_REWARD
+    )
+
+
+    if not user:
+
+        return jsonify({
+
+            "success": False,
+
+            "message":
+                "کاربر پیدا نشد"
+
+        }), 404
+
+
+    return jsonify({
+
+        "success": True,
+
+        "reward": TASK_REWARD,
+
+        "reward_type": "task",
+
+        "user": {
+
+            "balance":
+                user["balance"],
+
+            "referral_count":
+                user["referral_count"]
+
+        }
+
+    })
+
+
+# ==========================================
+# Run locally
 # ==========================================
 
 if __name__ == "__main__":
 
-    port = int(
-        os.environ.get(
-            "PORT",
-            5000
-        )
-    )
-
     app.run(
-
         host="0.0.0.0",
-
-        port=port
-
-        )
+        port=5000
+            )
