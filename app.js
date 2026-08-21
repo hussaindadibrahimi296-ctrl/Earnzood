@@ -5,17 +5,61 @@ tg.expand();
 
 const user = tg.initDataUnsafe?.user;
 
-if (user) {
-    const header = document.querySelector("header");
+async function registerUser() {
 
-    const welcome = document.createElement("p");
+    if (!user) {
+        console.log("Telegram user پیدا نشد");
+        return;
+    }
 
-    welcome.textContent = `سلام ${user.first_name} 👋`;
+    try {
 
-    welcome.style.marginTop = "10px";
-    welcome.style.color = "#ffd54a";
-    welcome.style.fontSize = "15px";
-    welcome.style.fontWeight = "bold";
+        const response = await fetch(
+            "https://earnzood-0m9k.onrender.com/api/user",
+            {
+                method: "POST",
 
-    header.appendChild(welcome);
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    telegram_id: user.id,
+                    username: user.username || "",
+                    first_name: user.first_name || ""
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        console.log("Server response:", data);
+
+        if (data.success) {
+
+            document.getElementById("balance").textContent =
+                data.user.balance.toLocaleString() + " 🪙";
+
+            const header = document.querySelector("header");
+
+            const welcome = document.createElement("p");
+
+            welcome.textContent =
+                `سلام ${data.user.first_name} 👋`;
+
+            welcome.style.marginTop = "10px";
+            welcome.style.color = "#ffd54a";
+            welcome.style.fontSize = "15px";
+            welcome.style.fontWeight = "bold";
+
+            header.appendChild(welcome);
+        }
+
+    } catch (error) {
+
+        console.error("API Error:", error);
+
+    }
 }
+
+registerUser();
