@@ -6,31 +6,47 @@ tg.expand();
 const user = tg.initDataUnsafe?.user;
 
 
-// نمایش نام کاربر بدون وابستگی به API
+// ==========================================
+// نمایش نام کاربر
+// ==========================================
+
 if (user) {
 
     const header = document.querySelector("header");
 
-    const welcome = document.createElement("p");
+    if (header) {
 
-    welcome.textContent = `سلام ${user.first_name || "کاربر"} 👋`;
+        const welcome = document.createElement("p");
 
-    welcome.style.marginTop = "10px";
-    welcome.style.color = "#ffd54a";
-    welcome.style.fontSize = "15px";
-    welcome.style.fontWeight = "bold";
+        welcome.textContent =
+            `سلام ${user.first_name || "کاربر"} 👋`;
 
-    header.appendChild(welcome);
+        welcome.style.marginTop = "10px";
+        welcome.style.color = "#ffd54a";
+        welcome.style.fontSize = "15px";
+        welcome.style.fontWeight = "bold";
+
+        header.appendChild(welcome);
+    }
 }
 
 
+// ==========================================
 // اتصال به Backend
+// ==========================================
+
 async function registerUser() {
 
-    if (!user) {
-        console.log("Telegram user پیدا نشد");
+    // بررسی اینکه Mini App واقعاً داخل Telegram باز شده
+    if (!tg.initData) {
+
+        console.error(
+            "Telegram initData پیدا نشد"
+        );
+
         return;
     }
+
 
     try {
 
@@ -44,9 +60,10 @@ async function registerUser() {
                 },
 
                 body: JSON.stringify({
-                    telegram_id: user.id,
-                    username: user.username || "",
-                    first_name: user.first_name || ""
+
+                    // اطلاعات امنیتی واقعی Telegram
+                    initData: tg.initData
+
                 })
             }
         );
@@ -54,29 +71,60 @@ async function registerUser() {
 
         const data = await response.json();
 
-        console.log("EarnZood API:", data);
+
+        console.log(
+            "EarnZood API:",
+            data
+        );
 
 
-        if (data.success && data.user) {
+        // ======================================
+        // کاربر با موفقیت ثبت شد
+        // ======================================
+
+        if (
+            data.success &&
+            data.user
+        ) {
 
             const balanceElement =
                 document.getElementById("balance");
 
-            balanceElement.textContent =
-                Number(data.user.balance).toLocaleString() + " 🪙";
+
+            if (balanceElement) {
+
+                balanceElement.textContent =
+                    Number(
+                        data.user.balance
+                    ).toLocaleString() +
+                    " 🪙";
+            }
+
+
+            console.log(
+                "کاربر با موفقیت ثبت شد:",
+                data.user
+            );
 
         } else {
 
-            console.error("ثبت کاربر موفق نبود:", data);
+            console.error(
+                "ثبت کاربر موفق نبود:",
+                data
+            );
 
         }
 
     } catch (error) {
 
-        console.error("خطا در اتصال به EarnZood API:", error);
+        console.error(
+            "خطا در اتصال به EarnZood API:",
+            error
+        );
 
     }
 }
 
 
+// اجرای ثبت کاربر
 registerUser();
