@@ -1,10 +1,20 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <meta name="theme-color" content="#0f1117">
+
     <title>EarnZood</title>
 
+    <!-- Telegram Mini App -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- EarnZood CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -12,48 +22,142 @@
 
     <div class="app">
 
+        <!-- Header -->
         <header>
-            <h1>🪙 EarnZood</h1>
+
+            <div class="logo">
+                🪙
+            </div>
+
+            <h1>EarnZood</h1>
+
             <p>Earn • Complete • Reward</p>
+
         </header>
 
+
+        <!-- Balance -->
         <section class="balance">
+
             <span>موجودی شما</span>
-            <strong>0 🪙</strong>
+
+            <strong id="balance">
+                0 🪙
+            </strong>
+
         </section>
 
-        <div class="buttons">
 
-            <button>
-                🎬
-                <span>مشاهده تبلیغ</span>
+        <!-- Main Buttons -->
+        <main class="buttons">
+
+            <button id="adsButton" class="menu-button">
+
+                <span class="button-icon">
+                    🎬
+                </span>
+
+                <span class="button-text">
+                    <b>مشاهده تبلیغ</b>
+                    <small>با مشاهده تبلیغ سکه بگیر</small>
+                </span>
+
+                <span class="arrow">
+                    ‹
+                </span>
+
             </button>
 
-            <button>
-                📋
-                <span>تسک‌ها</span>
+
+            <button id="tasksButton" class="menu-button">
+
+                <span class="button-icon">
+                    📋
+                </span>
+
+                <span class="button-text">
+                    <b>تسک‌ها</b>
+                    <small>تسک انجام بده و سکه بگیر</small>
+                </span>
+
+                <span class="arrow">
+                    ‹
+                </span>
+
             </button>
 
-            <button>
-                👥
-                <span>دعوت دوستان</span>
+
+            <button id="referralButton" class="menu-button">
+
+                <span class="button-icon">
+                    👥
+                </span>
+
+                <span class="button-text">
+                    <b>دعوت دوستان</b>
+                    <small>با دعوت دوستان پاداش بگیر</small>
+                </span>
+
+                <span class="arrow">
+                    ‹
+                </span>
+
             </button>
 
-            <button>
-                💰
-                <span>برداشت</span>
+
+            <button id="withdrawButton" class="menu-button">
+
+                <span class="button-icon">
+                    💰
+                </span>
+
+                <span class="button-text">
+                    <b>برداشت موجودی</b>
+                    <small>حداقل برداشت 5,000,000 سکه</small>
+                </span>
+
+                <span class="arrow">
+                    ‹
+                </span>
+
             </button>
 
-            <button>
-                👤
-                <span>حساب کاربری</span>
+
+            <button id="profileButton" class="menu-button">
+
+                <span class="button-icon">
+                    👤
+                </span>
+
+                <span class="button-text">
+                    <b>حساب کاربری</b>
+                    <small>اطلاعات حساب و تراکنش‌ها</small>
+                </span>
+
+                <span class="arrow">
+                    ‹
+                </span>
+
             </button>
 
-        </div>
+        </main>
+
+
+        <!-- Footer -->
+        <footer>
+
+            <p>
+                EarnZood © 2026
+            </p>
+
+        </footer>
 
     </div>
 
+
+    <!-- EarnZood JavaScript -->
     <script src="app.js"></script>
 
 </body>
+
 </html>
