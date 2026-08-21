@@ -14,149 +14,160 @@
     <!-- Telegram Mini App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+    <!-- AdsGram SDK -->
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+
     <!-- EarnZood CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <div class="app">
+<div class="app">
 
-        <!-- Header -->
-        <header>
+    <!-- Header -->
+    <header>
 
-            <div class="logo">
-                🪙
-            </div>
+        <div class="logo">🪙</div>
 
-            <h1>EarnZood</h1>
+        <h1>EarnZood</h1>
 
-            <p>Earn • Complete • Reward</p>
+        <p>Earn • Complete • Reward</p>
 
-        </header>
+    </header>
 
 
-        <!-- Balance -->
-        <section class="balance">
+    <!-- Balance -->
+    <section class="balance">
 
-            <span>موجودی شما</span>
+        <span>موجودی شما</span>
 
-            <strong id="balance">
-                0 🪙
-            </strong>
+        <strong id="balance">
+            0 🪙
+        </strong>
 
-        </section>
-
-
-        <!-- Main Buttons -->
-        <main class="buttons">
-
-            <button id="adsButton" class="menu-button">
-
-                <span class="button-icon">
-                    🎬
-                </span>
-
-                <span class="button-text">
-                    <b>مشاهده تبلیغ</b>
-                    <small>با مشاهده تبلیغ سکه بگیر</small>
-                </span>
-
-                <span class="arrow">
-                    ‹
-                </span>
-
-            </button>
+    </section>
 
 
-            <button id="tasksButton" class="menu-button">
+    <!-- Main Buttons -->
+    <main class="buttons">
 
-                <span class="button-icon">
-                    📋
-                </span>
+        <!-- Rewarded Ad -->
+        <button id="adsButton" class="menu-button">
 
-                <span class="button-text">
-                    <b>تسک‌ها</b>
-                    <small>تسک انجام بده و سکه بگیر</small>
-                </span>
+            <span class="button-icon">🎬</span>
 
-                <span class="arrow">
-                    ‹
-                </span>
+            <span class="button-text">
 
-            </button>
+                <b>مشاهده تبلیغ</b>
 
+                <small id="adsStatus">
+                    با مشاهده تبلیغ 100 سکه بگیر
+                </small>
 
-            <button id="referralButton" class="menu-button">
+            </span>
 
-                <span class="button-icon">
-                    👥
-                </span>
+            <span class="arrow">‹</span>
 
-                <span class="button-text">
-                    <b>دعوت دوستان</b>
-                    <small>با دعوت دوستان پاداش بگیر</small>
-                </span>
-
-                <span class="arrow">
-                    ‹
-                </span>
-
-            </button>
+        </button>
 
 
-            <button id="withdrawButton" class="menu-button">
+        <!-- AdsGram Tasks -->
+        <button id="tasksButton" class="menu-button">
 
-                <span class="button-icon">
-                    💰
-                </span>
+            <span class="button-icon">📋</span>
 
-                <span class="button-text">
-                    <b>برداشت موجودی</b>
-                    <small>حداقل برداشت 5,000,000 سکه</small>
-                </span>
+            <span class="button-text">
 
-                <span class="arrow">
-                    ‹
-                </span>
+                <b>تسک‌ها</b>
 
-            </button>
+                <small id="tasksStatus">
+                    تسک انجام بده و 100 سکه بگیر
+                </small>
 
+            </span>
 
-            <button id="profileButton" class="menu-button">
+            <span class="arrow">‹</span>
 
-                <span class="button-icon">
-                    👤
-                </span>
-
-                <span class="button-text">
-                    <b>حساب کاربری</b>
-                    <small>اطلاعات حساب و تراکنش‌ها</small>
-                </span>
-
-                <span class="arrow">
-                    ‹
-                </span>
-
-            </button>
-
-        </main>
+        </button>
 
 
-        <!-- Footer -->
-        <footer>
+        <!-- Referral -->
+        <button id="referralButton" class="menu-button">
 
-            <p>
-                EarnZood © 2026
-            </p>
+            <span class="button-icon">👥</span>
 
-        </footer>
+            <span class="button-text">
 
-    </div>
+                <b>دعوت دوستان</b>
+
+                <small>
+                    با دعوت دوستان پاداش بگیر
+                </small>
+
+            </span>
+
+            <span class="arrow">‹</span>
+
+        </button>
 
 
-    <!-- EarnZood JavaScript -->
-    <script src="app.js?v=2"></script>
+        <!-- Withdraw -->
+        <button id="withdrawButton" class="menu-button">
+
+            <span class="button-icon">💰</span>
+
+            <span class="button-text">
+
+                <b>برداشت موجودی</b>
+
+                <small>
+                    حداقل برداشت 5,000,000 سکه
+                </small>
+
+            </span>
+
+            <span class="arrow">‹</span>
+
+        </button>
+
+
+        <!-- Profile -->
+        <button id="profileButton" class="menu-button">
+
+            <span class="button-icon">👤</span>
+
+            <span class="button-text">
+
+                <b>حساب کاربری</b>
+
+                <small>
+                    اطلاعات حساب و تراکنش‌ها
+                </small>
+
+            </span>
+
+            <span class="arrow">‹</span>
+
+        </button>
+
+    </main>
+
+
+    <!-- Footer -->
+    <footer>
+
+        <p>
+            EarnZood © 2026
+        </p>
+
+    </footer>
+
+</div>
+
+
+<!-- EarnZood JavaScript -->
+<script src="app.js?v=3"></script>
 
 </body>
 
