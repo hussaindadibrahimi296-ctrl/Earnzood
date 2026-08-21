@@ -5,6 +5,26 @@ tg.expand();
 
 const user = tg.initDataUnsafe?.user;
 
+
+// نمایش نام کاربر بدون وابستگی به API
+if (user) {
+
+    const header = document.querySelector("header");
+
+    const welcome = document.createElement("p");
+
+    welcome.textContent = `سلام ${user.first_name || "کاربر"} 👋`;
+
+    welcome.style.marginTop = "10px";
+    welcome.style.color = "#ffd54a";
+    welcome.style.fontSize = "15px";
+    welcome.style.fontWeight = "bold";
+
+    header.appendChild(welcome);
+}
+
+
+// اتصال به Backend
 async function registerUser() {
 
     if (!user) {
@@ -31,35 +51,32 @@ async function registerUser() {
             }
         );
 
+
         const data = await response.json();
 
-        console.log("Server response:", data);
+        console.log("EarnZood API:", data);
 
-        if (data.success) {
 
-            document.getElementById("balance").textContent =
-                data.user.balance.toLocaleString() + " 🪙";
+        if (data.success && data.user) {
 
-            const header = document.querySelector("header");
+            const balanceElement =
+                document.getElementById("balance");
 
-            const welcome = document.createElement("p");
+            balanceElement.textContent =
+                Number(data.user.balance).toLocaleString() + " 🪙";
 
-            welcome.textContent =
-                `سلام ${data.user.first_name} 👋`;
+        } else {
 
-            welcome.style.marginTop = "10px";
-            welcome.style.color = "#ffd54a";
-            welcome.style.fontSize = "15px";
-            welcome.style.fontWeight = "bold";
+            console.error("ثبت کاربر موفق نبود:", data);
 
-            header.appendChild(welcome);
         }
 
     } catch (error) {
 
-        console.error("API Error:", error);
+        console.error("خطا در اتصال به EarnZood API:", error);
 
     }
 }
+
 
 registerUser();
