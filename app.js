@@ -1,6 +1,6 @@
 // ==========================================
-// EarnZood - Telegram Mini App
-// AdsGram Rewarded + Tasks
+// EarnZood Mini App
+// Telegram + AdsGram
 // ==========================================
 
 const tg = window.Telegram.WebApp;
@@ -10,13 +10,27 @@ tg.expand();
 
 
 // ==========================================
-// تنظیمات
+// Backend
 // ==========================================
 
-const API_URL = "https://earnzood-0m9k.onrender.com";
+const API_URL =
+    "https://earnzood-0m9k.onrender.com";
 
-const ADS_BLOCK_ID = "43856";
-const TASK_BLOCK_ID = "task-43858";
+
+// ==========================================
+// AdsGram
+// ==========================================
+
+// Rewarded AdsGram Block
+const ADSGRAM_BLOCK_ID = "43856";
+
+// AdsGram Task Block
+const ADSGRAM_TASK_ID = "task-43858";
+
+
+// فعلاً پاداش 100 سکه
+// بعداً از پنل مدیریت قابل تغییر می‌شود
+const DEFAULT_REWARD = 100;
 
 
 // ==========================================
@@ -41,9 +55,15 @@ const withdrawButton =
 const profileButton =
     document.getElementById("profileButton");
 
+const adsStatus =
+    document.getElementById("adsStatus");
+
+const tasksStatus =
+    document.getElementById("tasksStatus");
+
 
 // ==========================================
-// Telegram User
+// کاربر Telegram
 // ==========================================
 
 const user =
@@ -63,7 +83,7 @@ if (user) {
 
         const oldWelcome =
             document.getElementById(
-                "welcomeMessage"
+                "earnzoodWelcome"
             );
 
         if (!oldWelcome) {
@@ -72,7 +92,7 @@ if (user) {
                 document.createElement("p");
 
             welcome.id =
-                "welcomeMessage";
+                "earnzoodWelcome";
 
             welcome.textContent =
                 `سلام ${user.first_name || "کاربر"} 👋`;
@@ -89,34 +109,9 @@ if (user) {
             welcome.style.fontWeight =
                 "bold";
 
-            header.appendChild(
-                welcome
-            );
+            header.appendChild(welcome);
         }
     }
-}
-
-
-// ==========================================
-// بررسی Telegram
-// ==========================================
-
-function checkTelegram() {
-
-    if (!tg.initData) {
-
-        console.error(
-            "Telegram initData پیدا نشد."
-        );
-
-        tg.showAlert(
-            "این برنامه باید از داخل Telegram باز شود."
-        );
-
-        return false;
-    }
-
-    return true;
 }
 
 
@@ -130,30 +125,42 @@ function updateBalance(balance) {
         return;
     }
 
+    const amount =
+        Number(balance || 0);
+
     balanceElement.textContent =
-        Number(balance).toLocaleString() +
+        amount.toLocaleString() +
         " 🪙";
 }
 
 
 // ==========================================
-// درخواست API
+// ثبت / دریافت کاربر
 // ==========================================
 
-async function apiRequest(
-    endpoint,
-    extraData = {}
-) {
+async function registerUser() {
 
-    if (!checkTelegram()) {
+    if (!tg.initData) {
+
+        console.error(
+            "Telegram initData پیدا نشد"
+        );
+
+        if (balanceElement) {
+
+            balanceElement.textContent =
+                "خطا ❌";
+        }
+
         return null;
     }
+
 
     try {
 
         const response =
             await fetch(
-                API_URL + endpoint,
+                `${API_URL}/api/user`,
                 {
                     method: "POST",
 
@@ -165,43 +172,77 @@ async function apiRequest(
                     body: JSON.stringify({
 
                         initData:
-                            tg.initData,
+                            tg.initData
 
-                        ...extraData
                     })
                 }
             );
 
 
-        const data =
-            await response.json();
+        const text =
+            await response.text();
 
 
         console.log(
-            "EarnZood API:",
-            endpoint,
+            "User HTTP:",
+            response.status
+        );
+
+        console.log(
+            "User Response:",
+            text
+        );
+
+
+        let data;
+
+        try {
+
+            data =
+                JSON.parse(text);
+
+        } catch (error) {
+
+            throw new Error(
+                "Backend پاسخ JSON معتبر نداد"
+            );
+        }
+
+
+        if (
+            response.ok &&
+            data.success &&
+            data.user
+        ) {
+
+            updateBalance(
+                data.user.balance
+            );
+
+            console.log(
+                "کاربر ثبت شد:",
+                data.user
+            );
+
+            return data.user;
+        }
+
+
+        console.error(
+            "ثبت کاربر ناموفق:",
             data
         );
 
 
-        return {
-            response,
-            data
-        };
+        return null;
 
 
     } catch (error) {
 
         console.error(
-            "API Error:",
+            "خطای registerUser:",
             error
         );
-
-
-        tg.showAlert(
-            "خطا در اتصال به سرور EarnZood."
-        );
-
 
         return null;
     }
@@ -209,62 +250,107 @@ async function apiRequest(
 
 
 // ==========================================
-// ثبت / دریافت کاربر
+// دریافت پاداش از Backend
 // ==========================================
 
-async function registerUser() {
+async function claimReward(type) {
 
-    const result =
-        await apiRequest(
-            "/api/user"
+    if (!tg.initData) {
+
+        throw new Error(
+            "Telegram initData موجود نیست"
         );
-
-
-    if (!result) {
-        return;
     }
 
 
-    const {
-        response,
-        data
-    } = result;
+    console.log(
+        "درخواست پاداش:",
+        type
+    );
+
+
+    const response =
+        await fetch(
+            `${API_URL}/api/reward`,
+            {
+                method: "POST",
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json"
+
+                },
+
+                body: JSON.stringify({
+
+                    initData:
+                        tg.initData,
+
+                    type:
+                        type
+
+                })
+            }
+        );
+
+
+    const text =
+        await response.text();
+
+
+    console.log(
+        "Reward HTTP:",
+        response.status
+    );
+
+    console.log(
+        "Reward Response:",
+        text
+    );
+
+
+    let data;
+
+
+    try {
+
+        data =
+            JSON.parse(text);
+
+    } catch (error) {
+
+        throw new Error(
+            `سرور پاسخ JSON نداد: ${text}`
+        );
+    }
 
 
     if (
-        response.ok &&
-        data.success &&
-        data.user
+        !response.ok ||
+        !data.success
+    ) {
+
+        throw new Error(
+            data.message ||
+            `خطای سرور: ${response.status}`
+        );
+    }
+
+
+    if (
+        data.user &&
+        typeof data.user.balance !==
+        "undefined"
     ) {
 
         updateBalance(
             data.user.balance
         );
-
-
-        console.log(
-            "کاربر با موفقیت ثبت شد:",
-            data.user
-        );
-
-
-    } else {
-
-        console.error(
-            "ثبت کاربر موفق نبود:",
-            data
-        );
-
-
-        if (
-            data.message
-        ) {
-
-            console.error(
-                data.message
-            );
-        }
     }
+
+
+    return data;
 }
 
 
@@ -272,567 +358,162 @@ async function registerUser() {
 // AdsGram Rewarded
 // ==========================================
 
-let AdController = null;
+let AdController =
+    null;
 
 
-function initializeAdsGram() {
+try {
 
     if (
-        typeof window.Adsgram ===
-        "undefined"
+        window.Adsgram &&
+        typeof window.Adsgram.init ===
+        "function"
     ) {
-
-        console.error(
-            "AdsGram SDK پیدا نشد."
-        );
-
-        return false;
-    }
-
-
-    try {
 
         AdController =
             window.Adsgram.init({
+
                 blockId:
-                    ADS_BLOCK_ID
+                    ADSGRAM_BLOCK_ID
+
             });
 
 
         console.log(
-            "AdsGram Rewarded آماده شد."
+            "AdsGram Rewarded آماده شد"
         );
-
-
-        return true;
-
-
-    } catch (error) {
-
-        console.error(
-            "AdsGram initialization error:",
-            error
-        );
-
-
-        return false;
-    }
-}
-
-
-// ==========================================
-// دکمه مشاهده تبلیغ
-// ==========================================
-
-async function showRewardedAd() {
-
-    if (!checkTelegram()) {
-        return;
-    }
-
-
-    if (!AdController) {
-
-        const initialized =
-            initializeAdsGram();
-
-
-        if (!initialized) {
-
-            tg.showAlert(
-                "سیستم تبلیغات فعلاً در دسترس نیست."
-            );
-
-            return;
-        }
-    }
-
-
-    if (adsButton) {
-
-        adsButton.disabled = true;
-
-        adsButton.style.opacity =
-            "0.6";
-    }
-
-
-    try {
-
-        console.log(
-            "در حال نمایش تبلیغ..."
-        );
-
-
-        const result =
-            await AdController.show();
-
-
-        console.log(
-            "AdsGram Result:",
-            result
-        );
-
-
-        /*
-         * طبق مستندات AdsGram:
-         *
-         * در Rewarded فقط وقتی تبلیغ
-         * کامل مشاهده شده باشد پاداش می‌دهیم.
-         */
-
-
-        if (
-            result &&
-            result.done === true
-        ) {
-
-            console.log(
-                "تبلیغ کامل مشاهده شد."
-            );
-
-
-            const rewardResult =
-                await apiRequest(
-                    "/api/ad/reward"
-                );
-
-
-            if (!rewardResult) {
-                return;
-            }
-
-
-            const {
-                response,
-                data
-            } = rewardResult;
-
-
-            if (
-                response.ok &&
-                data.success
-            ) {
-
-                updateBalance(
-                    data.user.balance
-                );
-
-
-                tg.showAlert(
-                    `🎉 ${Number(data.reward).toLocaleString()} سکه دریافت کردی!`
-                );
-
-
-            } else {
-
-                console.error(
-                    "Ad reward error:",
-                    data
-                );
-
-
-                tg.showAlert(
-                    data.message ||
-                    "پاداش تبلیغ دریافت نشد."
-                );
-            }
-
-
-        } else {
-
-            console.log(
-                "تبلیغ کامل مشاهده نشد."
-            );
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "AdsGram show error:",
-            error
-        );
-
-
-        /*
-         * اگر کاربر تبلیغ را نبینید
-         * یا AdsGram خطا بدهد،
-         * پاداش داده نمی‌شود.
-         */
-
-
-    } finally {
-
-        if (adsButton) {
-
-            adsButton.disabled = false;
-
-            adsButton.style.opacity =
-                "1";
-        }
-    }
-}
-
-
-// ==========================================
-// AdsGram Task
-// ==========================================
-
-function initializeTask() {
-
-    /*
-     * Task توسط Web Component
-     * <adsgram-task>
-     * نمایش داده می‌شود.
-     *
-     * این تابع فعلاً container را
-     * داخل صفحه می‌سازد.
-     */
-
-
-    const existing =
-        document.getElementById(
-            "adsgramTaskContainer"
-        );
-
-
-    if (existing) {
-        return existing;
-    }
-
-
-    const container =
-        document.createElement("div");
-
-
-    container.id =
-        "adsgramTaskContainer";
-
-
-    container.style.marginTop =
-        "15px";
-
-
-    container.style.width =
-        "100%";
-
-
-    container.style.display =
-        "none";
-
-
-    const task =
-        document.createElement(
-            "adsgram-task"
-        );
-
-
-    task.setAttribute(
-        "data-block-id",
-        TASK_BLOCK_ID
-    );
-
-
-    task.setAttribute(
-        "data-debug",
-        "false"
-    );
-
-
-    task.setAttribute(
-        "data-debug-console",
-        "false"
-    );
-
-
-    task.className =
-        "earnzood-adsgram-task";
-
-
-    container.appendChild(
-        task
-    );
-
-
-    /*
-     * رویداد Reward
-     */
-
-    task.addEventListener(
-        "reward",
-        async function(event) {
-
-            console.log(
-                "AdsGram Task Reward:",
-                event
-            );
-
-
-            const rewardResult =
-                await apiRequest(
-                    "/api/task/reward"
-                );
-
-
-            if (!rewardResult) {
-                return;
-            }
-
-
-            const {
-                response,
-                data
-            } = rewardResult;
-
-
-            if (
-                response.ok &&
-                data.success
-            ) {
-
-                updateBalance(
-                    data.user.balance
-                );
-
-
-                tg.showAlert(
-                    `🎉 ${Number(data.reward).toLocaleString()} سکه بابت تسک دریافت کردی!`
-                );
-
-
-            } else {
-
-                console.error(
-                    "Task reward error:",
-                    data
-                );
-
-
-                tg.showAlert(
-                    data.message ||
-                    "پاداش تسک دریافت نشد."
-                );
-            }
-        }
-    );
-
-
-    /*
-     * خطای Task
-     */
-
-    task.addEventListener(
-        "onError",
-        function(event) {
-
-            console.error(
-                "AdsGram Task Error:",
-                event
-            );
-        }
-    );
-
-
-    /*
-     * هیچ Task موجود نیست
-     */
-
-    task.addEventListener(
-        "onBannerNotFound",
-        function(event) {
-
-            console.log(
-                "فعلاً Task تبلیغاتی موجود نیست.",
-                event
-            );
-        }
-    );
-
-
-    /*
-     * Session خیلی طولانی شده
-     */
-
-    task.addEventListener(
-        "onTooLongSession",
-        function(event) {
-
-            console.log(
-                "AdsGram session too long.",
-                event
-            );
-        }
-    );
-
-
-    document
-        .querySelector(".buttons")
-        ?.appendChild(
-            container
-        );
-
-
-    return container;
-}
-
-
-// ==========================================
-// نمایش Task
-// ==========================================
-
-function showTasks() {
-
-    if (!checkTelegram()) {
-        return;
-    }
-
-
-    const container =
-        initializeTask();
-
-
-    if (!container) {
-        return;
-    }
-
-
-    if (
-        container.style.display ===
-        "none"
-    ) {
-
-        container.style.display =
-            "block";
-
-
-        /*
-         * اسکرول به سمت Task
-         */
-
-        setTimeout(
-            function() {
-
-                container.scrollIntoView({
-                    behavior:
-                        "smooth",
-                    block:
-                        "center"
-                });
-
-            },
-            100
-        );
-
 
     } else {
 
-        container.style.display =
-            "none";
+        console.error(
+            "AdsGram SDK پیدا نشد"
+        );
     }
+
+
+} catch (error) {
+
+    console.error(
+        "AdsGram initialization error:",
+        error
+    );
 }
 
 
 // ==========================================
-// دکمه تبلیغات
+// مشاهده تبلیغ Rewarded
 // ==========================================
 
 if (adsButton) {
 
     adsButton.addEventListener(
         "click",
-        function() {
+        async function () {
 
-            showRewardedAd();
+            if (!AdController) {
 
-        }
-    );
-}
+                tg.showAlert(
+                    "سیستم تبلیغات فعلاً در دسترس نیست."
+                );
 
-
-// ==========================================
-// دکمه Task
-// ==========================================
-
-if (tasksButton) {
-
-    tasksButton.addEventListener(
-        "click",
-        function() {
-
-            showTasks();
-
-        }
-    );
-}
+                return;
+            }
 
 
-// ==========================================
-// دکمه دعوت دوستان
-// ==========================================
-
-if (referralButton) {
-
-    referralButton.addEventListener(
-        "click",
-        function() {
-
-            tg.showAlert(
-                "بخش دعوت دوستان به‌زودی فعال می‌شود."
-            );
-
-        }
-    );
-}
+            adsButton.disabled =
+                true;
 
 
-// ==========================================
-// دکمه برداشت
-// ==========================================
+            if (adsStatus) {
 
-if (withdrawButton) {
-
-    withdrawButton.addEventListener(
-        "click",
-        function() {
-
-            tg.showAlert(
-                "بخش برداشت به‌زودی فعال می‌شود."
-            );
-
-        }
-    );
-}
+                adsStatus.textContent =
+                    "در حال بارگذاری تبلیغ...";
+            }
 
 
-// ==========================================
-// پروفایل
-// ==========================================
+            try {
 
-if (profileButton) {
-
-    profileButton.addEventListener(
-        "click",
-        function() {
-
-            tg.showAlert(
-                "بخش حساب کاربری به‌زودی فعال می‌شود."
-            );
-
-        }
-    );
-}
+                const result =
+                    await AdController.show();
 
 
-// ==========================================
-// شروع AdsGram
-// ==========================================
+                console.log(
+                    "AdsGram Result:",
+                    result
+                );
 
-initializeAdsGram();
+
+                // ==================================
+                // فقط تبلیغ کامل = پاداش
+                // ==================================
+
+                if (
+                    result &&
+                    result.done === true
+                ) {
+
+                    if (adsStatus) {
+
+                        adsStatus.textContent =
+                            "در حال ثبت پاداش...";
+                    }
 
 
-// ==========================================
-// ثبت کاربر
-// ==========================================
+                    try {
 
-registerUser();
+                        const reward =
+                            await claimReward(
+                                "ads"
+                            );
+
+
+                        const amount =
+                            reward.reward ||
+                            DEFAULT_REWARD;
+
+
+                        tg.HapticFeedback
+                            ?.notificationOccurred(
+                                "success"
+                            );
+
+
+                        tg.showAlert(
+                            `🎉 تبریک!\n${amount.toLocaleString()} سکه دریافت کردی.`
+                        );
+
+
+                        if (adsStatus) {
+
+                            adsStatus.textContent =
+                                `با مشاهده تبلیغ ${DEFAULT_REWARD} سکه بگیر`;
+                        }
+
+
+                    } catch (rewardError) {
+
+                        console.error(
+                            "Reward API Error:",
+                            rewardError
+                        );
+
+
+                        tg.showAlert(
+                            `خطا در دریافت پاداش:\n${rewardError.message}`
+                        );
+
+
+                        if (adsStatus) {
+
+                            adsStatus.textContent =
+                                "خطا در ثبت پاداش";
+                        }
+                    }
+
+
+                } else {
+
+                    if (adsStatus) {
+
+                        adsStatus.textContent =
+                            `با مشاهده تبلیغ ${
