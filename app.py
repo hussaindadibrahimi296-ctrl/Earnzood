@@ -1,10 +1,13 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from database import init_db, create_user, get_db
-from datetime import datetime
 
 app = Flask(__name__)
 
-# ساخت دیتابیس هنگام اجرای برنامه
+# فعال‌سازی CORS برای اتصال GitHub Pages به Backend
+CORS(app)
+
+# ساخت جدول‌های دیتابیس هنگام اجرای برنامه
 init_db()
 
 
@@ -24,7 +27,7 @@ def test():
 @app.route("/api/user", methods=["POST"])
 def register_user():
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
     if not data:
         return jsonify({
@@ -33,8 +36,8 @@ def register_user():
         }), 400
 
     telegram_id = data.get("telegram_id")
-    username = data.get("username")
-    first_name = data.get("first_name")
+    username = data.get("username", "")
+    first_name = data.get("first_name", "")
 
     if not telegram_id:
         return jsonify({
@@ -42,27 +45,49 @@ def register_user():
             "message": "Telegram ID موجود نیست"
         }), 400
 
-    create_user(
-        telegram_id,
-        username,
-        first_name
-    )
+    try:
 
-    conn = get_db()
+        create_user(
+            telegram_id,
+            username,
+            first_name
+        )
 
-    user = conn.execute("""
-        SELECT telegram_id, username, first_name, balance, referral_count
-        FROM users
-        WHERE telegram_id = ?
-    """, (telegram_id,)).fetchone()
+        conn = get_db()
 
-    conn.close()
+        user = conn.execute("""
+            SELECT
+                telegram_id,
+                username,
+                first_name,
+                balance,
+                referral_count
+            FROM users
+            WHERE telegram_id = ?
+        """, (telegram_id,)).fetchone()
 
-    return jsonify({
-        "success": True,
-        "user": dict(user)
-    })
+        conn.close()
+
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "کاربر در دیتابیس پیدا نشد"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "user": dict(user)
+        })
+
+    except Exception as error:
+
+        print("DATABASE ERROR:", error)
+
+        return jsonify({
+            "success": False,
+            "message": "خطا در ثبت کاربر"
+        }), 500
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=5000)
